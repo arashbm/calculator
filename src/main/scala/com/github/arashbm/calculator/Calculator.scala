@@ -25,9 +25,9 @@ class Calculator extends CalculatorStack with JacksonJsonSupport {
       case Success(result) =>
         Map("error" -> false, "result" -> result)
       case Failure(error: ParseFailure) =>
-        halt(status = 400, body = Map("error" -> true, "message" -> error.reason))
+        halt(status = 400, body = Map("error" -> true, "message" -> error.getMessage))
       case Failure(error) =>
-        halt(status = 500, body = Map("error" -> true, "message" -> error))
+        halt(status = 500, body = Map("error" -> true, "message" -> error.getMessage))
     }
   }
 
@@ -89,7 +89,7 @@ class InfixQuery(query: String) {
   }
 }
 
-case class ParseFailure(reason: String) extends Throwable
+case class ParseFailure(message: String) extends Throwable(message)
 
 sealed abstract class CalcToken
 case class ValueToken(value: Double) extends CalcToken
