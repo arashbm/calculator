@@ -15,6 +15,8 @@ object JettyLauncher {
     context.setContextPath("/")
     context.setResourceBase("src/main/webapp")
 
+    context.getErrorHandler.setShowStacks(false)
+
     context.setEventListeners(Array(new ScalatraListener))
 
     server.setHandler(context)
