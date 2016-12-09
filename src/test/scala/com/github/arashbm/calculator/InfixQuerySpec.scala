@@ -8,146 +8,91 @@ class InfixQuerySpec extends MutableScalatraSpec {
     "tokenize" in {
       "correct input" in {
         var tokens = new InfixQuery("123 + 2/(3.2 + 1.2)").tokenize
-        tokens must beSuccessfulTry
-        tokens must beLike {
-          case Success(List(
-            ValueToken(123.0),
-            OperatorToken('+', _, _, _, _),
+        tokens must beSuccessfulTry.like {
+          case List(ValueToken(123.0),
+            PlusOp,
             ValueToken(2.0),
-            OperatorToken('/', _, _, _, _),
+            DivisionOp,
             ParenthesisToken(true),
             ValueToken(3.2),
-            OperatorToken('+', _, _, _, _),
+            PlusOp,
             ValueToken(1.2),
-            ParenthesisToken(false)
-          )) => ok
+            ParenthesisToken(false)) => ok
         }
       }
 
-      "incorrect input" in {
-        var tokens = new InfixQuery("123 + 2/(3.2 + 1.2 2.3)").tokenize
+      "incorrect input: bad number" in {
+        var tokens = new InfixQuery("123 + 1.2.3").tokenize
+        tokens must beFailedTry
+      }
+
+      "incorrect input: unknown operator" in {
+        var tokens = new InfixQuery("123 + 1.23 _ 1").tokenize
         tokens must beFailedTry
       }
     }
 
     "shuntingYard" in {
       "simple valid infix expression" in {
-        var tokens = List(
+        val tokens = List(
           ValueToken(123.0),
-          OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-            arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+          PlusOp,
           ValueToken(123.0)
         )
-        var postfix = new InfixQuery("blah").shuntingYard(tokens)
-        postfix must beSuccessfulTry
-        postfix must beLike {
-          case Success(List(
+        val postfix = new InfixQuery("blah").shuntingYard(tokens)
+        postfix must beSuccessfulTry.like {
+          case pf: PostfixExpression if pf.tokens == List(ValueToken(123.0),
             ValueToken(123.0),
-            ValueToken(123.0),
-            OperatorToken('+', _, _, _, _)
-          )) => ok
+            PlusOp) => ok
         }
       }
 
       "complicated valid infix expression" in {
 
         // 123 + 2/(3.2 + 1.2)
-        var tokens = List(
+        val tokens = List(
             ValueToken(123.0),
-            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+            PlusOp,
             ValueToken(2.0),
-            OperatorToken(op = '/', precedence = 3, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_/_))),
+            DivisionOp,
             ParenthesisToken(true),
             ValueToken(3.2),
-            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+            PlusOp,
             ValueToken(1.2),
             ParenthesisToken(false)
           )
-        var postfix = new InfixQuery("blah").shuntingYard(tokens)
-        postfix must beSuccessfulTry
-
-        // 123 2 3.2 1.2 + / +
-        postfix must beLike {
-          case Success(List(
-            ValueToken(123.0),
+        val postfix = new InfixQuery("blah").shuntingYard(tokens)
+        postfix must beSuccessfulTry.like {
+          case pf: PostfixExpression if pf.tokens == List(ValueToken(123.0),
             ValueToken(2.0),
             ValueToken(3.2),
             ValueToken(1.2),
-            OperatorToken('+', _, _, _, _),
-            OperatorToken('/', _, _, _, _),
-            OperatorToken('+', _, _, _, _)
-          )) => ok
+            PlusOp,
+            DivisionOp,
+            PlusOp) => ok
         }
       }
 
-      "invalid infix expression" in {
-        var tokens = List(
+      "invalid left paranthesis in infix expression" in {
+        val tokens = List(
           ValueToken(123.0),
-          OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-            arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+          ParenthesisToken(true),
           ValueToken(123.0),
+          ParenthesisToken(true),
           ValueToken(123.0)
         )
-        var postfix = new InfixQuery("blah").shuntingYard(tokens)
+        val postfix = new InfixQuery("blah").shuntingYard(tokens)
         postfix must beFailedTry
       }
-    }
 
-    "solvePostfix" in {
-      "simple valid postfix expression" in {
-        var tokens = List(
-          ValueToken(2.1),
-          ValueToken(3.2),
-          OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-            arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
+      "invalid right paranthesis in infix expression" in {
+        val tokens = List(
+          ValueToken(123.0),
+          ParenthesisToken(false),
+          ValueToken(123.0)
         )
-        var result = new InfixQuery("blah").solvePostfix(tokens)
-        result must beSuccessfulTry.withValue(beCloseTo(5.3 within 2.significantFigures))
-      }
-
-      "complicated valid postfix expression" in {
-        var tokens = List(
-            ValueToken(123.0),
-            ValueToken(2.0),
-            ValueToken(3.2),
-            ValueToken(1.2),
-            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
-            OperatorToken(op = '/', precedence = 3, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_/_))),
-            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
-        )
-        var result = new InfixQuery("blah").solvePostfix(tokens)
-        result must beSuccessfulTry.withValue(
-          beCloseTo(123.45 within 2.significantFigures))
-      }
-
-
-      "invalid postfix expression" in {
-        "too many args" in {
-          var tokens = List(
-            ValueToken(2.1),
-            ValueToken(3.2),
-            ValueToken(3.2),
-            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
-            )
-          var result = new InfixQuery("blah").solvePostfix(tokens)
-          result must beFailedTry.withThrowable[ParseFailure]("too many values in user input")
-        }
-        "too few args" in {
-          var tokens = List(
-            ValueToken(3.2),
-            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
-              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
-            )
-          var result = new InfixQuery("blah").solvePostfix(tokens)
-          result must beFailedTry.withThrowable[ParseFailure]("not enough arguments for operator .")
-        }
+        val postfix = new InfixQuery("blah").shuntingYard(tokens)
+        postfix must beFailedTry
       }
     }
   }
