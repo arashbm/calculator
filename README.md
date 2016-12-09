@@ -3,7 +3,8 @@
 ## API
 
 `GET /calculus` with single mandatory parameter query, base64 encoded of a valid
-infix expression. The only supported operators is `+` ATM.
+infix expression. The only supported operators are `+ (binary operator)`, `-`
+(binary operator), `*` and `/` ATM.
 
 Succesful response is a status 200 with JSON body `{error: false, result: RESULT}`
 where `RESULT` is the result of the infix expression.
