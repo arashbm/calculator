@@ -9,6 +9,9 @@ object JettyLauncher {
 
     val server = new Server(port)
     val context = new WebAppContext()
+    context.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
+    context.setInitParameter(org.scalatra.EnvironmentKey, "production")
+
     context.setContextPath("/")
     context.setResourceBase("src/main/webapp")
 
