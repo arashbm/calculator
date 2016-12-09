@@ -52,7 +52,7 @@ class PostfixExpressionSpec extends MutableScalatraSpec {
             PlusOp
             )
           val result = new PostfixExpression(tokens).solve
-          result must beFailedTry.withThrowable[ParseFailure]("not enough arguments for operator .")
+          result must beFailedTry.withThrowable[ParseFailure]("not enough arguments for operator '.'")
         }
 
         "empty input" in {
