@@ -9,7 +9,19 @@ class InfixQuerySpec extends MutableScalatraSpec {
       "correct input" in {
         var tokens = new InfixQuery("123 + 2/(3.2 + 1.2)").tokenize
         tokens must beSuccessfulTry
-        todo // check actual values
+        tokens must beLike {
+          case Success(List(
+            ValueToken(123.0),
+            OperatorToken('+', _, _, _, _),
+            ValueToken(2.0),
+            OperatorToken('/', _, _, _, _),
+            ParenthesisToken(true),
+            ValueToken(3.2),
+            OperatorToken('+', _, _, _, _),
+            ValueToken(1.2),
+            ParenthesisToken(false)
+          )) => ok
+        }
       }
 
       "incorrect input" in {
@@ -19,7 +31,7 @@ class InfixQuerySpec extends MutableScalatraSpec {
     }
 
     "shuntingYard" in {
-      "valid infix expression" in {
+      "simple valid infix expression" in {
         var tokens = List(
           ValueToken(123.0),
           OperatorToken(op = '+', precedence = 2, leftAssociative = true,
@@ -28,7 +40,47 @@ class InfixQuerySpec extends MutableScalatraSpec {
         )
         var postfix = new InfixQuery("blah").shuntingYard(tokens)
         postfix must beSuccessfulTry
-        todo // check actual values
+        postfix must beLike {
+          case Success(List(
+            ValueToken(123.0),
+            ValueToken(123.0),
+            OperatorToken('+', _, _, _, _)
+          )) => ok
+        }
+      }
+
+      "complicated valid infix expression" in {
+
+        // 123 + 2/(3.2 + 1.2)
+        var tokens = List(
+            ValueToken(123.0),
+            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
+              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+            ValueToken(2.0),
+            OperatorToken(op = '/', precedence = 3, leftAssociative = true,
+              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_/_))),
+            ParenthesisToken(true),
+            ValueToken(3.2),
+            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
+              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+            ValueToken(1.2),
+            ParenthesisToken(false)
+          )
+        var postfix = new InfixQuery("blah").shuntingYard(tokens)
+        postfix must beSuccessfulTry
+
+        // 123 2 3.2 1.2 + / +
+        postfix must beLike {
+          case Success(List(
+            ValueToken(123.0),
+            ValueToken(2.0),
+            ValueToken(3.2),
+            ValueToken(1.2),
+            OperatorToken('+', _, _, _, _),
+            OperatorToken('/', _, _, _, _),
+            OperatorToken('+', _, _, _, _)
+          )) => ok
+        }
       }
 
       "invalid infix expression" in {
@@ -44,19 +96,38 @@ class InfixQuerySpec extends MutableScalatraSpec {
       }
     }
 
-    "solveRPN" in {
-      "valid RPN expression" in {
+    "solvePostfix" in {
+      "simple valid postfix expression" in {
         var tokens = List(
           ValueToken(2.1),
           ValueToken(3.2),
           OperatorToken(op = '+', precedence = 2, leftAssociative = true,
             arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
         )
-        var result = new InfixQuery("blah").solveRPN(tokens)
+        var result = new InfixQuery("blah").solvePostfix(tokens)
         result must beSuccessfulTry.withValue(beCloseTo(5.3 within 2.significantFigures))
       }
 
-      "invalid RPN expression" in {
+      "complicated valid postfix expression" in {
+        var tokens = List(
+            ValueToken(123.0),
+            ValueToken(2.0),
+            ValueToken(3.2),
+            ValueToken(1.2),
+            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
+              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_))),
+            OperatorToken(op = '/', precedence = 3, leftAssociative = true,
+              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_/_))),
+            OperatorToken(op = '+', precedence = 2, leftAssociative = true,
+              arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
+        )
+        var result = new InfixQuery("blah").solvePostfix(tokens)
+        result must beSuccessfulTry.withValue(
+          beCloseTo(123.45 within 2.significantFigures))
+      }
+
+
+      "invalid postfix expression" in {
         "too many args" in {
           var tokens = List(
             ValueToken(2.1),
@@ -65,7 +136,7 @@ class InfixQuerySpec extends MutableScalatraSpec {
             OperatorToken(op = '+', precedence = 2, leftAssociative = true,
               arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
             )
-          var result = new InfixQuery("blah").solveRPN(tokens)
+          var result = new InfixQuery("blah").solvePostfix(tokens)
           result must beFailedTry.withThrowable[ParseFailure]("too many values in user input")
         }
         "too few args" in {
@@ -74,7 +145,7 @@ class InfixQuerySpec extends MutableScalatraSpec {
             OperatorToken(op = '+', precedence = 2, leftAssociative = true,
               arity = 2, action = ((a: List[Double]) => a.reduceLeft(_+_)))
             )
-          var result = new InfixQuery("blah").solveRPN(tokens)
+          var result = new InfixQuery("blah").solvePostfix(tokens)
           result must beFailedTry.withThrowable[ParseFailure]("not enough arguments for operator .")
         }
       }
