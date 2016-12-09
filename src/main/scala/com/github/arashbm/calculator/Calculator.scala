@@ -20,7 +20,7 @@ class Calculator extends CalculatorStack with JacksonJsonSupport {
 
   get("/calculus") {
     var query = new String(new sun.misc.BASE64Decoder().decodeBuffer(params("query")))
-    logger.info("calculator query: " + query)
+    logger.info(s"calculator query: '${query}'")
     var infix = new InfixQuery(query)
     infix.solve match {
       case Success(result) =>

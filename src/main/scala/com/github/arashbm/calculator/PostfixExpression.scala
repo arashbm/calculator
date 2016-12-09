@@ -17,7 +17,7 @@ class PostfixExpression(val tokens: List[CalcToken]) {
       case (_:ParenthesisToken) :: (_:List[CalcToken]) =>
         Failure(new ParseFailure("postfix notation cannot contain parenthesis"))
       case (token:OperatorToken) :: (rest:List[CalcToken]) if (stack.length < token.arity) =>
-        Failure(new ParseFailure("not enough arguments for operator " + token.op))
+        Failure(new ParseFailure(s"not enough arguments for operator '${token.op}'"))
       case (token:OperatorToken) :: (rest:List[CalcToken]) => {
         val (head, tail) = stack.splitAt(token.arity)
         var calcStep = ValueToken(token.action(head.map(_.value)))
