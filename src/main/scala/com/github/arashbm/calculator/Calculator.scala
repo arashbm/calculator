@@ -19,18 +19,24 @@ class Calculator extends CalculatorStack with JacksonJsonSupport {
   }
 
   get("/calculus") {
-    var query = new String(new sun.misc.BASE64Decoder().decodeBuffer(params("query")))
-    logger.info(s"calculator query: '${query}'")
-    var infix = new InfixQuery(query)
-    infix.solve match {
-      case Success(result) =>
-        Map("error" -> false, "result" -> result)
-      case Failure(error: ParseFailure) =>
-        halt(status = 400, body = Map("error" -> true, "message" -> error.getMessage))
+    val query = Try(params("query"))
+    query match {
       case Failure(error) =>
-        halt(status = 500, body = Map("error" -> true, "message" -> error.getMessage))
+        halt(status = 400, body = Map("error" -> true, "message" -> "no query given"))
+      case Success(q) => {
+        var decodedQuery = new String(new sun.misc.BASE64Decoder().decodeBuffer(q))
+        logger.info(s"calculator query: '${decodedQuery}'")
+        var infix = new InfixQuery(decodedQuery)
+        infix.solve match {
+          case Success(result) =>
+            Map("error" -> false, "result" -> result)
+          case Failure(error: ParseFailure) =>
+            halt(status = 400, body = Map("error" -> true, "message" -> error.getMessage))
+          case Failure(error) =>
+            halt(status = 500, body = Map("error" -> true, "message" -> error.getMessage))
+        }
+      }
     }
   }
-
 }
 
